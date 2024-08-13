@@ -14,9 +14,9 @@ SPRITE_SIZE :: 5
 
 SCREEN_WIDTH :: 64
 SCREEN_HEIGHT :: 32
-PIXEL_SIZE: f32: 16
-OFFSET_X: f32: 50
-OFFSET_Y: f32: 50
+PIXEL_SIZE :: 16
+OFFSET_X :: 50
+OFFSET_Y :: 50
 
 PROGRAM_START :: 0x200
 
@@ -470,17 +470,11 @@ update_timers :: proc(chip: ^Chip8) {
 render :: proc(chip: Chip8) {
     for i in 0..<SCREEN_HEIGHT {
         for j in 0..<SCREEN_WIDTH {
-            rl.DrawRectangleRec(rl.Rectangle {f32(j) + OFFSET_X, f32(i) + OFFSET_Y, PIXEL_SIZE, PIXEL_SIZE}, {0, 255, 0, 255})
+			color := rl.GREEN if chip.display[i][j] else rl.BLACK
+            rl.DrawRectangle(i32(j * PIXEL_SIZE + OFFSET_X), i32(i * PIXEL_SIZE + OFFSET_Y), PIXEL_SIZE, PIXEL_SIZE, color)
         }
     }
 }
-
-/* main :: proc() { */
-/* 	// init chip8 */
-/* 	chip: Chip8 */
-/* 	init_chip8(&chip) */
-/* 	load_rom(&chip, "./astro.ch8") */
-/* } */
 
 main :: proc() {
 	// init chip8
