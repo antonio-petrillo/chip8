@@ -10,6 +10,7 @@ MEMORY_SIZE :: 4096
 REGISTERS_SIZE :: 16
 STACK_SIZE :: 16
 KEYPAD_SIZE :: 16
+SPRITE_SIZE :: 5
 
 SCREEN_WIDTH :: 64
 SCREEN_HEIGHT :: 32
@@ -305,7 +306,6 @@ execute_instruction :: proc(chip: ^Chip8, instr: u16) {
         chip.V[0xF] = 0 // start with no collision
 
         for sprite_row in 0..<n {
-
             row := chip.memory[chip.I + u16(sprite_row)]
             y := (start_y + sprite_row) % SCREEN_HEIGHT
             for sprite_col: u8 = 0; sprite_col < 8; sprite_col += 1 {
@@ -338,17 +338,70 @@ execute_instruction :: proc(chip: ^Chip8, instr: u16) {
         }
 
     case 0xF000:
-        // TODO
         switch kk {
         case 0x07:
+            log.infof("Execute := LD Vx, DT, [0x%4x], x := %1x", instr, x)
+            chip.V[x] = chip.DT
+
         case 0x0A:
+            /* await for keypress and store in */
+            log.infof("Execute := LD Vx, K, [0x%4x], x := %1x", instr, x)
+            key_pressed: bool
+            for i: u8 = 0; i <= 0xF; i += 1  {
+                if chip.keypad[i] {
+                    chip.V[x] = i
+                    key_pressed = true
+                    break
+                }
+            }
+
+            if !key_pressed {
+                chip.PC -= 2 // decrease Program Counter to repeat current instr
+            }
+
         case 0x15:
+            log.infof("Execute := LD DT, Vx, [0x%4x], x := %1x", instr, x)
+            chip.DT = chip.V[x]
+
         case 0x18:
+            log.infof("Execute := LD ST, Vx, [0x%4x], x := %1x", instr, x)
+            chip.ST = chip.V[x]
+
         case 0x1E:
+            log.infof("Execute := ADD I, Vx, [0x%4x], x := %1x", instr, x)
+            chip.I += u16(chip.V[x])
+
         case 0x29:
+            log.infof("Execute := LD F, Vx, [0x%4x], x := %1x", instr, x)
+            assert(chip.V[x] <= 0xF)
+            chip.I = u16(chip.V[x]) * SPRITE_SIZE
+
         case 0x33:
+            log.infof("Execute := LD B, Vx, [0x%4x], x := %1x", instr, x)
+            assert(chip.I < MEMORY_SIZE - 2)
+            digits := chip.V[x] % 10
+            tens := chip.V[x] / 10 % 10
+            hundreds := chip.V[x] / 100
+
+            chip.memory[chip.I] = hundreds
+            chip.memory[chip.I + 1] = tens
+            chip.memory[chip.I + 2] = digits
+
         case 0x55:
+            log.infof("Execute := LD [I], Vx, [0x%4x], x := %1x", instr, x)
+            assert(chip.I < MEMORY_SIZE - u16(x))
+
+            for idx: u16 = 0; idx <= u16(x); idx+=1 {
+                chip.memory[chip.I + idx] = chip.V[idx]
+            }
+
         case 0x65:
+            log.infof("Execute := LD Vx, [I], [0x%4x], x := %1x", instr, x)
+            assert(chip.I < MEMORY_SIZE - u16(x))
+
+            for idx: u16 = 0; idx <= u16(x); idx += 1 {
+                chip.V[idx] = chip.memory[chip.I + idx]
+            }
         }
     }
 

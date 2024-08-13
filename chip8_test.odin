@@ -572,11 +572,11 @@ test_call_draw_x_y_n :: proc(t: ^testing.T) {
     chip: Chip8
     load_fonts(&chip)
 
-    chip.memory[200] = 0xD0
-    chip.memory[201] = 0x05
-    chip.memory[202] = 0xD0
-    chip.memory[203] = 0x05
-    chip.PC = 200
+    chip.memory[PROGRAM_START] = 0xD0
+    chip.memory[PROGRAM_START + 1] = 0x05
+    chip.memory[PROGRAM_START + 2] = 0xD0
+    chip.memory[PROGRAM_START + 3] = 0x05
+    chip.PC = PROGRAM_START
 
     // load default font 0 into screen
     instr := fetch_instruction(&chip)
@@ -596,12 +596,206 @@ test_call_draw_x_y_n :: proc(t: ^testing.T) {
     instr = fetch_instruction(&chip)
     execute_instruction(&chip, instr)
 
-    for i in 0..<5 {
-        for j: u8 = 0; j < 8; j += 1 {
-            if font[i] & (0x80 >> j) != 0 {
-                testing.expect_value(t, chip.display[i][j], false)
-            }
+    for i in 0..<SCREEN_HEIGHT {
+        for j in 0..<SCREEN_WIDTH {
+            testing.expect_value(t, chip.display[i][j], false)
         }
     }
     testing.expect_value(t, chip.V[0xf], 1)
+}
+
+
+@(test)
+test_call_load_dt_into_vx_0xFx07 :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF0
+    chip.memory[1] = 0x07
+
+    chip.DT = 0xff
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+
+    testing.expect_value(t, chip.V[0], 0xff)
+}
+
+@(test)
+test_call_load_vx_into_dt_0xFx15 :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF0
+    chip.memory[1] = 0x15
+
+    chip.V[0] = 0xff
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+
+    testing.expect_value(t, chip.DT, 0xff)
+}
+
+@(test)
+test_call_load_vx_into_st_0xFx18 :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF0
+    chip.memory[1] = 0x18
+
+    chip.V[0] = 0xff
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+
+    testing.expect_value(t, chip.ST, 0xff)
+}
+
+@(test)
+test_call_add_I_vx_0xFx1E :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF0
+    chip.memory[1] = 0x1E
+    chip.memory[2] = 0xF1
+    chip.memory[3] = 0x1E
+
+    chip.V[0] = 0x9
+    chip.V[1] = 0x1
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+    testing.expect_value(t, chip.I, 0x9)
+
+    instr = fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+    testing.expect_value(t, chip.I, 0xA)
+}
+
+@(test)
+test_call_load_font_vx_0xFx29 :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF0
+    chip.memory[1] = 0x29
+
+    chip.memory[2] = 0xF1
+    chip.memory[3] = 0x29
+
+    chip.V[0] = 0x0 // font 0
+    chip.V[1] = 0xA // font A
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+
+    testing.expect_value(t, chip.I, 0x0)
+
+    instr = fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+    testing.expect_value(t, chip.I, 0x32)
+}
+
+@(test)
+test_call_store_bcd_rapresentation_0xFx33 :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF0
+    chip.memory[1] = 0x33
+
+    chip.V[0] = 0x80
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+    testing.expect_value(t, chip.memory[chip.I], 0x1)
+    testing.expect_value(t, chip.memory[chip.I + 1], 0x2)
+    testing.expect_value(t, chip.memory[chip.I + 2], 0x8)
+}
+
+@(test)
+test_call_store_v0_vF_start_at_I_0xFx55 :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF4
+    chip.memory[1] = 0x55
+    chip.memory[2] = 0xFF
+    chip.memory[3] = 0x55
+
+    chip.I = PROGRAM_START
+
+    for i in 0..=0xF {
+        chip.V[i] = u8(i + 1)
+    }
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+
+    for i in 0..=0x4 {
+        testing.expect_value(t, chip.memory[chip.I + u16(i)], u8(i + 1))
+    }
+    for i in 0x5..=0xF {
+        testing.expect_value(t, chip.memory[chip.I + u16(i)], 0x0)
+    }
+
+    instr = fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+
+    for i in 0..=0xF {
+        testing.expect_value(t, chip.memory[chip.I + u16(i)], u8(i + 1))
+    }
+
+}
+
+@(test)
+test_call_read_v0_vF_from_mem_start_at_I_0xFx65 :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF4
+    chip.memory[1] = 0x65
+    chip.memory[2] = 0xFF
+    chip.memory[3] = 0x65
+
+    chip.I = PROGRAM_START
+
+    for i in 0..=0xF {
+        chip.memory[PROGRAM_START + i] = u8(i + 1)
+    }
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+
+    for i: u8 = 0; i <= 0x4; i += 1 {
+        testing.expect_value(t, chip.V[i], i + 1)
+    }
+    for i: u16 = 0x5; i <= 0xF; i += 1 {
+        testing.expect_value(t, chip.V[i], 0x0)
+    }
+
+    instr = fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+
+    for i: u8 = 0; i <= 0xF; i += 1 {
+        testing.expect_value(t, chip.V[i], i + 1)
+    }
+
+}
+
+@(test)
+test_call_wait_for_key_press_0xFx0A :: proc(t: ^testing.T) {
+    chip: Chip8
+
+    chip.memory[0] = 0xF0
+    chip.memory[1] = 0x0A
+
+    old_PC := chip.PC
+
+    instr := fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+    testing.expect_value(t, chip.PC, old_PC)
+
+    // simulate key press
+    chip.keypad[0xA] = true
+
+    instr = fetch_instruction(&chip)
+    execute_instruction(&chip, instr)
+    testing.expect_value(t, chip.PC, old_PC + 2)
+    testing.expect_value(t, chip.V[0], 0xA)
 }
