@@ -20,9 +20,9 @@ test_init_chip8 :: proc(t: ^testing.T) {
 test_load_rom :: proc(t: ^testing.T) {
     chip: Chip8
 
-    load_rom(&chip, "./ibm.ch8")
+    load_rom(&chip, "./astro.ch8")
 
-    fd, err := os.open("./ibm.ch8")
+    fd, err := os.open("./astro.ch8")
 
     testing.expect(t, err == os.ERROR_NONE, "Can't open program")
 
@@ -387,12 +387,12 @@ test_call_sub_reg_x_y_0x8xy5 :: proc(t: ^testing.T) {
     instr := fetch(&chip)
     execute(&chip, instr)
     testing.expect_value(t, chip.V[0], 0x03)
-    testing.expect_value(t, chip.V[0xF], 0x0)
+    testing.expect_value(t, chip.V[0xF], 1)
 
     instr = fetch(&chip)
     execute(&chip, instr)
     testing.expect_value(t, chip.V[2], 0xFF)
-    testing.expect_value(t, chip.V[0xF], 1)
+    testing.expect_value(t, chip.V[0xF], 0)
 }
 
 @(test)
@@ -458,12 +458,12 @@ test_call_subn_reg_x_y_0x8xy7 :: proc(t: ^testing.T) {
     instr := fetch(&chip)
     execute(&chip, instr)
     testing.expect_value(t, chip.V[0], 0x03)
-    testing.expect_value(t, chip.V[0xF], 0x0)
+    testing.expect_value(t, chip.V[0xF], 1)
 
     instr = fetch(&chip)
     execute(&chip, instr)
     testing.expect_value(t, chip.V[2], 0xFF)
-    testing.expect_value(t, chip.V[0xF], 1)
+    testing.expect_value(t, chip.V[0xF], 0)
 }
 
 @(test)

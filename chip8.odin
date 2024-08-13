@@ -1,9 +1,9 @@
 package chip8
 
-import "core:fmt"
 import "core:log"
 import "core:math/rand"
 import "core:os"
+import "core:fmt"
 import rl "vendor:raylib"
 
 MEMORY_SIZE :: 4096
@@ -242,7 +242,8 @@ execute :: proc(chip: ^Chip8, instr: u16) {
 			sum: u16 = u16(chip.V[x]) + u16(chip.V[y])
 
 			chip.V[x] = u8(sum & 0x00FF)
-			chip.V[0xF] = 1 if sum & 0xFF00 != 0 else 0
+			/* chip.V[0xF] = 1 if sum & 0xFF00 != 0 else 0 */
+			chip.V[0xF] = 1 if sum > 255 else 0
 
 		case 0x5:
 			log.infof(
@@ -251,13 +252,13 @@ execute :: proc(chip: ^Chip8, instr: u16) {
 				x,
 				y,
 			)
-			chip.V[0xF] = 1 if chip.V[y] > chip.V[x] else 0
+			chip.V[0xF] = 1 if chip.V[y] < chip.V[x] else 0
 			chip.V[x] -= chip.V[y]
 
 		// https://github.com/trapexit/chip-8_documentation
 		case 0x6:
 			log.infof(
-				"Execute := SHR Vx {, Vy} [0x%4x], x := %1x, y := %1x, VF not borrow",
+				"Execute := SHR Vx {, Vy} [0x%4x], x := %1x, y := %1x, VF LSB",
 				instr,
 				x,
 				y,
@@ -272,13 +273,13 @@ execute :: proc(chip: ^Chip8, instr: u16) {
 				x,
 				y,
 			)
-			chip.V[0xF] = 1 if chip.V[x] > chip.V[y] else 0
+			chip.V[0xF] = 1 if chip.V[x] < chip.V[y] else 0
 			chip.V[x] = chip.V[y] - chip.V[x]
 
 		// https://github.com/trapexit/chip-8_documentation
 		case 0xE:
 			log.infof(
-				"Execute := SHL Vx {, Vy} [0x%4x], x := %1x, y := %1x, VF not borrow",
+				"Execute := SHL Vx {, Vy} [0x%4x], x := %1x, y := %1x, VF MSB",
 				instr,
 				x,
 				y,
@@ -424,6 +425,7 @@ execute :: proc(chip: ^Chip8, instr: u16) {
 play_tone :: proc() {}
 
 update_keypad :: proc(chip: ^Chip8) {
+	log.info("update keypad")
     @(static)
 	keys := [?]rl.KeyboardKey {
 		.X,
@@ -455,6 +457,7 @@ update_keypad :: proc(chip: ^Chip8) {
 }
 
 update_timers :: proc(chip: ^Chip8) {
+	log.info("update timers")
     if chip.ST > 0 {
         chip.ST -= 1
     }
@@ -472,11 +475,18 @@ render :: proc(chip: Chip8) {
     }
 }
 
+/* main :: proc() { */
+/* 	// init chip8 */
+/* 	chip: Chip8 */
+/* 	init_chip8(&chip) */
+/* 	load_rom(&chip, "./astro.ch8") */
+/* } */
+
 main :: proc() {
 	// init chip8
 	chip: Chip8
 	init_chip8(&chip)
-	load_rom(&chip, "./ibm.ch8")
+	load_rom(&chip, "./astro.ch8")
 
 	rl.InitWindow(1920, 1080, "Chip8 Emulator [Odin + Raylib]")
     rl.SetTargetFPS(60) // check if make the emulator run at 60 hz
@@ -490,7 +500,9 @@ main :: proc() {
         update_keypad(&chip)
         update_timers(&chip)
 
+
         instr := fetch(&chip)
+		fmt.printf("fetching instr := %4x\n", instr)
         execute(&chip, instr)
 
         render(chip)
