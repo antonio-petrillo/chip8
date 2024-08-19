@@ -29,7 +29,8 @@ Chip8 :: struct {
 	stack:   [STACK_SIZE]u16,
 	ST:      u8,
 	DT:      u8,
-	display: [SCREEN_HEIGHT][SCREEN_WIDTH]bool,
+	// display: [SCREEN_HEIGHT][SCREEN_WIDTH]bool,
+	display: [SCREEN_HEIGHT]int,
 	keypad:  [KEYPAD_SIZE]bool,
 }
 
@@ -165,7 +166,7 @@ execute :: proc(chip: ^Chip8, instr: u16) {
 			log.info("Execute := CLS [0x00e0]")
 			for i in 0 ..< SCREEN_HEIGHT {
 				for j in 0 ..< SCREEN_WIDTH {
-					chip.display[i][j] = false
+					chip.display[i] = 0
 				}
 			}
 
@@ -328,10 +329,13 @@ execute :: proc(chip: ^Chip8, instr: u16) {
 					x := (start_x + sprite_col) % SCREEN_WIDTH
 
 					// if the pixel will be erased set VF = 1
-					if chip.display[y][x] {
+					mask := 1 << (63 - x)
+					if chip.display[y] & mask != 0 {
 						chip.V[0xF] = 1
+						chip.display[y] &= ~mask
+					} else {
+						chip.display[y] |= mask
 					}
-					chip.display[y][x] ~= true
 				}
 			}
 		}
@@ -470,7 +474,7 @@ update_timers :: proc(chip: ^Chip8) {
 render :: proc(chip: Chip8) {
     for i in 0..<SCREEN_HEIGHT {
         for j in 0..<SCREEN_WIDTH {
-			color := rl.GREEN if chip.display[i][j] else rl.BLACK
+			color := rl.GREEN if chip.display[i] & (1 << u32(63 - j)) != 0 else rl.BLACK
             rl.DrawRectangle(i32(j * PIXEL_SIZE + OFFSET_X), i32(i * PIXEL_SIZE + OFFSET_Y), PIXEL_SIZE, PIXEL_SIZE, color)
         }
     }
@@ -483,7 +487,6 @@ main :: proc() {
 	load_rom(&chip, "./astro.ch8")
 
 	rl.InitWindow(1920, 1080, "Chip8 Emulator [Odin + Raylib]")
-    rl.SetTargetFPS(60) // check if make the emulator run at 60 hz
 
     for !rl.WindowShouldClose() {
         rl.BeginDrawing()
