@@ -68,25 +68,16 @@ test_fetch_instruction :: proc(t: ^testing.T) {
 test_cls_instr_0x00E0 :: proc(t: ^testing.T) {
     chip: Chip8
 
-    chip.display[0][0] = true
-    chip.display[31][0] = true
-    chip.display[0][63] = true
-    chip.display[31][63] = true
+    chip.display[0] = 0x80000001 
+    chip.display[31] = 0x80000001
 
     chip.memory[1] = 0xE0
-
-    testing.expect_value(t, chip.display[0][0], true)
-    testing.expect_value(t, chip.display[31][0], true)
-    testing.expect_value(t, chip.display[0][63], true)
-    testing.expect_value(t, chip.display[31][63], true)
 
     instr := fetch(&chip)
     execute(&chip, instr)
 
     for i in 0..<SCREEN_HEIGHT {
-        for j in 0..<SCREEN_WIDTH {
-            testing.expect_value(t, chip.display[i][j], false)
-        }
+        testing.expect_value(t, chip.display[i], 0)
     }
 }
 
@@ -588,10 +579,11 @@ test_call_draw_x_y_n :: proc(t: ^testing.T) {
     font := default_fonts
     for i in 0..<5 {
         for j: u8 = 0; j < 8; j += 1 {
+            mask := 1 << uint(63 - j)
             if font[i] & (0x80 >> j) != 0 {
-                testing.expect_value(t, chip.display[i][j], true)
+                testing.expect(t, chip.display[i] & mask != 0)
             } else {
-                testing.expect_value(t, chip.display[i][j], false)
+                testing.expect(t, chip.display[i] & mask == 0)
             }
         }
     }
@@ -600,9 +592,7 @@ test_call_draw_x_y_n :: proc(t: ^testing.T) {
     execute(&chip, instr)
 
     for i in 0..<SCREEN_HEIGHT {
-        for j in 0..<SCREEN_WIDTH {
-            testing.expect_value(t, chip.display[i][j], false)
-        }
+        testing.expect_value(t, chip.display[i], 0)
     }
     testing.expect_value(t, chip.V[0xf], 1)
 }
